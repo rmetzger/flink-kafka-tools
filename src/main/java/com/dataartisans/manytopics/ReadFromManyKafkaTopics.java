@@ -19,7 +19,6 @@ package com.dataartisans.manytopics;
  */
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -27,10 +26,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer082;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 
-public class GenerateIntoManyKafkaTopics {
+import java.util.ArrayList;
+import java.util.List;
+
+public class ReadFromManyKafkaTopics {
 
 	public static void main(String[] args) throws Exception {
 		// set up the execution environment
@@ -40,41 +43,20 @@ public class GenerateIntoManyKafkaTopics {
 		String topicPrefix = pt.getRequired("topicPrefix");
 		final long[] messagesPerTopic = {pt.getLong("messagesPerTopic")};
 
-		SerializationSchema<Message> messageSer =
+		DeserializationSchema<Message> messageSer =
 				new TypeInformationSerializationSchema<>((TypeInformation<Message>) TypeExtractor.createTypeInfo(Message.class),
 						env.getConfig());
 
 		int topicCount = pt.getInt("topicCount");
-		final long sleep = pt.getLong("sleep", 0);
+
+		List<String> topics = new ArrayList<>();
 		for(int i = 0; i < topicCount; i++) {
 			final String topic = topicPrefix + i;
-			DataStream<Message> stream = env.addSource(new SourceFunction<Message>() {
-				public boolean running;
-
-				@Override
-				public void run(SourceContext<Message> ctx) throws Exception {
-					while(running) {
-						if(messagesPerTopic[0]-- == 0) {
-							running = false;
-							break;
-						}
-						if(sleep > 0) {
-							Thread.sleep(sleep);
-						}
-						Message msg = new Message();
-						msg.id = messagesPerTopic[0];
-						msg.topic = topic;
-						ctx.collect(msg);
-					}
-				}
-
-				@Override
-				public void cancel() {
-					running = false;
-				}
-			});
-			stream.addSink(new FlinkKafkaProducer<>(topic, messageSer, pt.getProperties()));
+			topics.add(topic);
 		}
+		DataStream<Message> stream = env.addSource(new FlinkKafkaConsumer082<Message>(topics, messageSer, pt.getProperties()));
+
+		stream.keyBy("topic").
 
 
 
