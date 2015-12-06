@@ -25,12 +25,17 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer082;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GenerateIntoManyKafkaTopics {
+
+	private static final Logger LOG = LoggerFactory.getLogger(GenerateIntoManyKafkaTopics.class);
 
 	public static void main(String[] args) throws Exception {
 		// set up the execution environment
@@ -49,12 +54,13 @@ public class GenerateIntoManyKafkaTopics {
 		for(int i = 0; i < topicCount; i++) {
 			final String topic = topicPrefix + i;
 			DataStream<Message> stream = env.addSource(new SourceFunction<Message>() {
-				public boolean running;
+				public boolean running = true;
 
 				@Override
 				public void run(SourceContext<Message> ctx) throws Exception {
 					while(running) {
 						if(messagesPerTopic[0]-- == 0) {
+							LOG.info("Reached end");
 							running = false;
 							break;
 						}

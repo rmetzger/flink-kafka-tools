@@ -18,9 +18,13 @@ package com.dataartisans.manytopics;
  * limitations under the License.
  */
 
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -29,6 +33,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
+import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,23 +46,30 @@ public class ReadFromManyKafkaTopics {
 
 		ParameterTool pt = ParameterTool.fromPropertiesFile(args[0]);
 		String topicPrefix = pt.getRequired("topicPrefix");
-		final long[] messagesPerTopic = {pt.getLong("messagesPerTopic")};
 
 		DeserializationSchema<Message> messageSer =
 				new TypeInformationSerializationSchema<>((TypeInformation<Message>) TypeExtractor.createTypeInfo(Message.class),
 						env.getConfig());
 
-		int topicCount = pt.getInt("topicCount");
+		final int topicCount = pt.getInt("topicCount");
 
 		List<String> topics = new ArrayList<>();
 		for(int i = 0; i < topicCount; i++) {
 			final String topic = topicPrefix + i;
 			topics.add(topic);
 		}
-		DataStream<Message> stream = env.addSource(new FlinkKafkaConsumer082<Message>(topics, messageSer, pt.getProperties()));
+		DataStream<Message> stream = env.addSource(new FlinkKafkaConsumer082<>(topics, messageSer, pt.getProperties()));
 
-		stream.keyBy("topic").
+		stream.keyBy("topic").flatMap(new RichFlatMapFunction<Message, Object>() {
 
+			@Override
+			public void flatMap(Message message, Collector<Object> collector) throws Exception {
+				LongCounter topicElements = getRuntimeContext().getLongCounter(message.topic + "_element_count");
+				topicElements.add(1L);
+			}
+		});
+
+		stream.print();
 
 
 		// execute program
