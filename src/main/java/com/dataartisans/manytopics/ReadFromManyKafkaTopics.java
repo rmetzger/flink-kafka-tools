@@ -19,34 +19,35 @@ package com.dataartisans.manytopics;
  */
 
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer082;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 public class ReadFromManyKafkaTopics {
 
 	public static void main(String[] args) throws Exception {
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+		env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+		env.getCheckpointConfig().setCheckpointInterval(10000);
+		env.enableCheckpointing(10000);
 
 		ParameterTool pt = ParameterTool.fromPropertiesFile(args[0]);
 		String topicPrefix = pt.getRequired("topicPrefix");
-
+		env.setParallelism(pt.getInt("par", 1));
 		DeserializationSchema<Message> messageSer =
 				new TypeInformationSerializationSchema<>((TypeInformation<Message>) TypeExtractor.createTypeInfo(Message.class),
 						env.getConfig());
@@ -58,7 +59,8 @@ public class ReadFromManyKafkaTopics {
 			final String topic = topicPrefix + i;
 			topics.add(topic);
 		}
-		DataStream<Message> stream = env.addSource(new FlinkKafkaConsumer082<>(topics, messageSer, pt.getProperties()));
+		Properties props = pt.getProperties();
+		DataStream<Message> stream = env.addSource(new FlinkKafkaConsumer08<>(topics, messageSer, props));
 
 		stream.keyBy("topic").flatMap(new RichFlatMapFunction<Message, Object>() {
 

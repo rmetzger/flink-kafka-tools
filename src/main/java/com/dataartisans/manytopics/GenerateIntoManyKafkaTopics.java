@@ -19,15 +19,12 @@ package com.dataartisans.manytopics;
  */
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer082;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.slf4j.Logger;
@@ -79,7 +76,7 @@ public class GenerateIntoManyKafkaTopics {
 					running = false;
 				}
 			});
-			stream.addSink(new FlinkKafkaProducer<>(topic, messageSer, pt.getProperties()));
+			stream.addSink(new FlinkKafkaProducer08<>(topic, messageSer, pt.getProperties()));
 		}
 
 
