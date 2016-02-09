@@ -26,6 +26,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer08;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
@@ -71,10 +72,10 @@ public class ReadFromManyKafkaTopics {
 			}
 		});
 
-		stream.print();
+		stream.addSink(new DiscardingSink<Message>());
 
 
 		// execute program
-		env.execute("Streaming data into " + topicCount + " topics");
+		env.execute("Reading data from " + topicCount + " topics");
 	}
 }
